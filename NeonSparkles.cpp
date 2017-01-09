@@ -357,10 +357,6 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 				rgb_color c2 = rgb_color(c);
 				c1.alpha = 8;
 				c2.alpha = 4;
-				if (n & 1) {
-					c1 = make_color(0, 0, 0, 255);
-					c2 = make_color(0, 0, 0, 127);
-				}
 
 				fBackView->AddLine(BPoint(dx-2.5, dy-2.5), BPoint(dx, dy), c1);
 				fBackView->AddLine(BPoint(dx+2.5, dy-2.5), BPoint(dx, dy), c2);
