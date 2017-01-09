@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * 
  * Copyright 2016, Adrien Destugues
+ * Copyright 2017, Jessica Hamilton
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,10 +29,10 @@
 
 class City;
 
-class NeonLights : public BScreenSaver, public BHandler {
+class NeonSparkles : public BScreenSaver, public BHandler {
 public:
-						NeonLights(BMessage* archive, image_id id);
-						~NeonLights();
+						NeonSparkles(BMessage* archive, image_id id);
+						~NeonSparkles();
 
 	virtual void		StartConfig(BView* view);
 

@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * 
  * Copyright 2016, Adrien Destugues
+ * Copyright 2017, Jessica Hamilton
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * SOFTWARE.
  */
 
-#include "NeonLights.h"
+#include "NeonSparkles.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -31,6 +32,7 @@
 #include <CheckBox.h>
 #include <TextView.h>
 #include <LayoutBuilder.h>
+#include <Region.h>
 #include <Slider.h>
 #include <String.h>
 #include <Window.h>
@@ -38,38 +40,38 @@
 #define ARRAY_SIZE(a) \
 	(sizeof(a) / sizeof(a[0]))
 
-static const BString kName = "Neon Lights";
-static const BString kAuthor = "Adrien Destugues";
+static const BString kName = "Neon Sparkles";
+static const BString kAuthor = "Adrien Destugues, Jessica Hamilton";
 
 extern "C" BScreenSaver*
 instantiate_screen_saver(BMessage* msg, image_id id)
 {
-	return new NeonLights(msg, id);
+	return new NeonSparkles(msg, id);
 }
 
 
-NeonLights::NeonLights(BMessage* archive, image_id id)
+NeonSparkles::NeonSparkles(BMessage* archive, image_id id)
 	:
 	BScreenSaver(archive, id)
 {
 	fSpots = 22;
 	fParticles = 1000;
-	fSpotSize = .5;
+	fSpotSize = 5;
 }
 
 
-NeonLights::~NeonLights()
+NeonSparkles::~NeonSparkles()
 {
 }
 
 
-void NeonLights::StartConfig(BView* view)
+void NeonSparkles::StartConfig(BView* view)
 {
 	// TODO
 }
 
 
-status_t NeonLights::StartSaver(BView* view, bool prev)
+status_t NeonSparkles::StartSaver(BView* view, bool prev)
 {
 	srandom(time(NULL));
 
@@ -144,21 +146,33 @@ rgb_color somecolor() {
 class City {
 public:
   float x, y;
-  BPoint old;
+  BPoint path[0x201];
+  int count = 0;
+  //BPoint old;
   int other;
   float vx, vy;
   rgb_color myc;
+  bool reverse = false;
 
   void Draw(BView* view) {
-    view->AddLine(old, BPoint(x,y), make_color(255, 255, 255, 255));
-	old = BPoint(x,y);
+  	//rgb_color c = make_color(255, 255, 255, 255);
+  	//if (reverse)
+  	//	c = make_color(0, 0, 0, 255);
+  	view->SetDrawingMode(B_OP_OVER);
+  	path[count++] = BPoint(x, y);
+  	int beginning = max_c(0, count - 32);
+  	view->BeginLineArray(32);
+  	for (int i = beginning; i < count - 1; ++i) {
+  		view->AddLine(path[i], path[i + 1], make_color(255, 255, 255, 255));
+  	}
+ 	view->EndLineArray();
   }
 };
 
 static const int kMaxCities = 64;
 City cities[kMaxCities];
 
-void NeonLights::_Move(City* city, BView* view) {
+void NeonSparkles::_Move(City* city, BView* view) {
     city->vx += (cities[city->other].x-city->x)/view->Bounds().Width();
     city->vy += (cities[city->other].y-city->y)/view->Bounds().Height();
 
@@ -175,20 +189,36 @@ void NeonLights::_Move(City* city, BView* view) {
 }
 
 
-void NeonLights::_Restart(BView* view)
+void NeonSparkles::_Restart(BView* view)
 {
+	view->SetDrawingMode(B_OP_BLEND);
+	view->FillRect(view->Bounds(), B_SOLID_LOW);
 	view->FillRect(view->Bounds(), B_SOLID_LOW);
 
 	float tinc = 2 * M_PI / fSpots;
+	
+	float r = random();
+	r /= RAND_MAX;
+	r /= 2; // in range 0.0 - 0.5
+	r -= 0.25;
+	int x = r * (float)fWidth;
+	int y = r * (float)fHeight;
+	x = (fWidth / 2) + x;
+	y = (fHeight / 2) + y;
 
 	for (int t = 0; t < fSpots; t++)
 	{
-		cities[t].x = fWidth / 2;
-		cities[t].y = fHeight / 2;
-		cities[t].old = BPoint(cities[t].x, cities[t].y);
+		float r = random();
+		r = r / RAND_MAX;
+			// between 0 and 1
+		cities[t].x = x;
+		cities[t].y = y;
+		cities[t].path[0] = BPoint(x, y);
+		cities[t].count = 1;
 		cities[t].vx = (1+random() % 11)*sin(tinc*t);
 		cities[t].vy = (1+random() % 11)*cos(tinc*t);
 		cities[t].myc = somecolor();
+		cities[t].reverse = !cities[t].reverse;
 		do {
 			cities[t].other = random() % fSpots;
 		} while(cities[t].other == t);
@@ -209,14 +239,22 @@ float citydistance(int a, int b) {
 }
 
 
-void NeonLights::Draw(BView* view, int32 frame)
+void NeonSparkles::Draw(BView* view, int32 frame)
 {
-	if ((frame & 0x3FF) == 0)
+	if ((frame & 0x1FF) == 0)
 		_Restart(view);
+	//if ((frame & 0x1f) == 0) {
+		view->SetDrawingMode(B_OP_ALPHA);
+		rgb_color c = view->LowColor();
+		view->SetLowColor(make_color(0, 0, 0, 1));
+		view->FillRect(view->Bounds(), B_SOLID_LOW);
+		view->SetLowColor(c);
+	//}
 
-
-	view->BeginLineArray(fParticles);
-	for (int n = 0; n < fParticles; n++)
+	view->SetDrawingMode(B_OP_BLEND);
+	view->SetPenSize(1.5);
+	view->BeginLineArray(fParticles * 5);
+	for (int n = 0; n < fParticles; n++) 
 	{
 		int a = random() % fSpots; // int rand
 		int b = 0;
@@ -237,25 +275,41 @@ void NeonLights::Draw(BView* view, int32 frame)
 		float dy = sin(t)*(cities[b].y-cities[a].y)+cities[a].y;
 
 			// noise
-			dx += random() * 3.0 / RAND_MAX - 1.5;
-			dy += random() * 3.0 / RAND_MAX - 1.5;
+			//dx += random() * 1.5 / RAND_MAX - 1.5;
+			//dy += random() * 1.5 / RAND_MAX - 1.5;
 
 		rgb_color c = mix_color(cities[b].myc, cities[a].myc, 128);
-		c.alpha = 96;
+		c.alpha = 16;
+		rgb_color c1 = rgb_color(c);
+		rgb_color c2 = rgb_color(c);
+		c1.alpha = 8;
+		c2.alpha = 4;
+		if (n & 1) {
+			c1 = make_color(0, 0, 0, 255);
+			c2 = make_color(0, 0, 0, 127);
+		}
+		view->AddLine(BPoint(dx-2.5, dy-2.5), BPoint(dx, dy), c1);
+		view->AddLine(BPoint(dx+2.5, dy-2.5), BPoint(dx, dy), c2);
 		view->AddLine(BPoint(dx, dy), BPoint(dx, dy), c);
+		view->AddLine(BPoint(dx,dy), BPoint(dx+2.5, dy+2.5), c2);
+		view->AddLine(BPoint(dx,dy), BPoint(dx-2.5, dy+2.5), c1);
 	}
 	view->EndLineArray();
 
 	view->SetPenSize(fSpotSize);
-	view->BeginLineArray(fSpots);
+	//view->BeginLineArray(fSpots * 0x200);
 	// move cities
-	for (int c = 0; c < fSpots; c++)
+	for (int c = 0; c < fSpots; c++) {
+		//view->BeginLineArray(36);
 		_Move(&cities[c], view);
-	view->EndLineArray();
+		//view->EndLineArray();
+		
+	}
+	//view->EndLineArray();
 }
 
 
-void NeonLights::MessageReceived(BMessage* msg)
+void NeonSparkles::MessageReceived(BMessage* msg)
 {
 	switch (msg->what) {
 	default:
@@ -264,7 +318,7 @@ void NeonLights::MessageReceived(BMessage* msg)
 }
 
 
-status_t NeonLights::SaveState(BMessage* into) const
+status_t NeonSparkles::SaveState(BMessage* into) const
 {
 	return B_OK;
 }

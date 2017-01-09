@@ -1,16 +1,12 @@
-Neon Lights
+Neon Sparkles
 ===========
 
-Screensaver for Haiku, loosely based on [Jared Tarbell's work](http://www.complexification.net/gallery/machines/citytraveller/).
-
-![Screenshot](screenshot1.png)
+Screensaver for Haiku, based on [PulkoMandy's Neon Lines](https:github.com/pulkomandy/neonlights), which in turn is loosely based on [Jared Tarbell's work](http://www.complexification.net/gallery/machines/citytraveller/).
 
 Why?
 ----
 
-For some time I happily used the [Substrate](https://github.com/haikuarchives/substrate) screensaver, but, it is only a port
-of an existing Linux one. Haiku needed something more unique. Also, I couldn't convince some other people that Substrate is
-so much nicer than the IFS screensaver. This is another attempt to make them switch to something more colorful.
+Because I didn't like the noise in Neon Lights :p
 
 License
 -------
@@ -19,6 +15,8 @@ It is released under the MIT licence.
 
 Greetings
 ---------
+
+To Adrien Destuges for the original Neon Lights.
 
 To Jared Tarbell for beautiful inspiration with sourcecode.
 
