@@ -358,11 +358,16 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 				c1.alpha = 8;
 				c2.alpha = 4;
 
-				fBackView->AddLine(BPoint(dx-2.5, dy-2.5), BPoint(dx, dy), c1);
-				fBackView->AddLine(BPoint(dx+2.5, dy-2.5), BPoint(dx, dy), c2);
+				float delta = random();
+				delta /= RAND_MAX;
+				delta *= 2.5;
+				delta += 2.5;
+
+				fBackView->AddLine(BPoint(dx-delta, dy-delta), BPoint(dx, dy), c1);
+				fBackView->AddLine(BPoint(dx+delta, dy-delta), BPoint(dx, dy), c2);
 				fBackView->AddLine(BPoint(dx, dy), BPoint(dx, dy), c);
-				fBackView->AddLine(BPoint(dx,dy), BPoint(dx+2.5, dy+2.5), c2);
-				fBackView->AddLine(BPoint(dx,dy), BPoint(dx-2.5, dy+2.5), c1);
+				fBackView->AddLine(BPoint(dx,dy), BPoint(dx+delta, dy+delta), c2);
+				fBackView->AddLine(BPoint(dx,dy), BPoint(dx-delta, dy+delta), c1);
 			}
 			fBackView->EndLineArray();
 
