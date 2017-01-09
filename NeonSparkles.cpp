@@ -55,9 +55,10 @@ NeonSparkles::NeonSparkles(BMessage* archive, image_id id)
 	:
 	BScreenSaver(archive, id)
 {
-	fSpots = 22;
+	fSpots = 11;
 	fParticles = 250;
 	fSpotSize = 5;
+	SetTickSize(TickSize() / 2);
 }
 
 
@@ -129,9 +130,21 @@ rgb_color somecolor() {
 		{ 255, 0, 255, 128 },
 		//{ 255, 255, 255, 128 },
 		//{ 128, 128, 128, 128 },
-		{ 0, 255, 0, 128 },
+		//{ 0, 255, 0, 128 },
 		{ 255, 0, 0, 128 },
 		{ 255, 255, 0, 128 },
+		{ 14, 209, 66, 255 },
+		{ 236, 28, 34, 255 },
+		{ 255, 127, 39, 255 },
+		{ 255, 242, 0, 255 },
+		{ 14, 209, 66, 255 },
+		{ 0, 167, 243, 255 },
+		{ 63, 72, 204, 255 },
+		{ 184, 61, 186, 255 },
+		{ 255, 174, 199 ,255 },
+		{ 255, 202, 24, 255 },
+		{ 195, 255, 12, 255 },
+		{ 140, 255, 251, 255 }
 #if 0
 		{ 0x00, 0x00, 0x00, 56 }, { 0x00, 0x00, 0x00, 56 },
 		{ 0x00, 0x00, 0x00, 56 }, { 0x00, 0x00, 0x00, 56 },
@@ -179,23 +192,28 @@ public:
   int other;
   float vx, vy;
   rgb_color myc;
+  int alpha;
 
   void Draw(BView* view) {
-  	view->SetDrawingMode(B_OP_OVER);
+	view->SetDrawingMode(B_OP_ALPHA);
   	path[count++] = BPoint(x, y);
-  	int beginning = max_c(0, count - 32);
+	int beginning = max_c(0, count - 16);
 	// colour underneath
-	view->SetPenSize(5.0 / 2.0);
+	view->SetPenSize(5.0 / 1.2);
 	view->BeginLineArray(32);
+	rgb_color neon = make_color(myc.red, myc.green, myc.blue, alpha);
 	for (int i = beginning; i < count - 1; ++i) {
-		view->AddLine(path[i], path[i + 1], myc);
+		view->AddLine(path[i], path[i + 1], neon);
 	}
 	view->EndLineArray();
+
 	// white on top
 	view->SetPenSize(5.0 / 3.0);
 	view->BeginLineArray(32);
+	beginning = max_c(0, count - 24);
+	rgb_color white = make_color(255, 255, 255, alpha);
 	for (int i = beginning; i < count - 1; ++i) {
-		view->AddLine(path[i], path[i + 1], make_color(255, 255, 255, 255));
+		view->AddLine(path[i], path[i + 1], white);
 	}
 	view->EndLineArray();
   }
@@ -214,9 +232,13 @@ void NeonSparkles::_Move(City* city, BView* view) {
 	if (random() < RAND_MAX / 100)
 		city->other = random() % fSpots;
 
-    city->x+=city->vx / 2;
-    city->y+=city->vy / 2;
-    if (city->x > 0 && city->x < view->Bounds().Width())
+	city->x+=city->vx / 2;
+	city->y+=city->vy / 2;
+	//if (city->alpha > 250) {
+		city->x += city->vx * (random() * 2 / RAND_MAX + 1);
+		city->y += city->vy * (random() * 2 / RAND_MAX + 1);
+	//}
+	if (city->x > 0 && city->x < view->Bounds().Width())
 		city->x += city->vx;
     if (city->y > 0 && city->y < view->Bounds().Height())
 		city->y += city->vy;
@@ -242,15 +264,24 @@ void NeonSparkles::_Restart(BView* view)
 	r /= RAND_MAX;
 	r /= 2; // in range 0.0 - 0.5
 	r -= 0.25;
-	int x = r * (float)fWidth;
-	int y = r * (float)fHeight;
-	x = (fWidth / 2) + x;
-	y = (fHeight / 2) + y;
+	int city = random() % fSpots;
+	int x = cities[city].x;
+	int y = cities[city].y;
+
+	if (x <= 0 || x >= fWidth) {
+		x = r * (float)fWidth;
+		x = (fWidth / 2) + x;
+	}
+	if (y <= 0 || y >= fHeight) {
+		y = r * (float)fHeight;
+		y = (fHeight / 2) + y;
+	}
 
 	for (int t = 0; t < fSpots; t++)
 	{
 		cities[t].x = x;
 		cities[t].y = y;
+		cities[t].alpha = 255;
 		cities[t].path[0] = BPoint(x, y);
 		cities[t].count = 1;
 		cities[t].vx = (1+random() % 11)*sin(tinc*t);
@@ -282,15 +313,16 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 
 	if (fBackView) {
 		if (fBackBitmap->Lock()) {
-			if ((frame & 0x1FF) == 0)
-				_Restart(fBackView);
+			//if ((frame & 0x1FF) == 0)
+			//	_Restart(fBackView);
 
-			fBackView->SetDrawingMode(B_OP_ALPHA);
-			rgb_color c = fBackView->LowColor();
-			fBackView->SetLowColor(make_color(0, 0, 0, 1));
-			fBackView->FillRect(view->Bounds(), B_SOLID_LOW);
-			fBackView->SetLowColor(c);
-
+			//if ((frame & 1) == 0) {
+				fBackView->SetDrawingMode(B_OP_ALPHA);
+				rgb_color c = fBackView->LowColor();
+				fBackView->SetLowColor(make_color(0, 0, 0, 1));
+				fBackView->FillRect(view->Bounds(), B_SOLID_LOW);
+				fBackView->SetLowColor(c);
+			//}
 
 			fBackView->SetDrawingMode(B_OP_BLEND);
 			fBackView->SetPenSize(1.5);
@@ -319,7 +351,7 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 				dx += random() * 1.5 / RAND_MAX - 1.5;
 				dy += random() * 1.5 / RAND_MAX - 1.5;
 
-				rgb_color c = mix_color(cities[b].myc, cities[a].myc, 128);
+				rgb_color c = mix_color(cities[b].myc, cities[a].myc, random() % 256);
 				c.alpha = 16;
 				rgb_color c1 = rgb_color(c);
 				rgb_color c2 = rgb_color(c);
@@ -340,9 +372,17 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 
 			// move cities
 			fBackView->SetPenSize(fSpotSize / 3);
+			bool restart = false;
 			for (int c = 0; c < fSpots; c++) {
+				if (cities[c].alpha > 0 && (frame & 2) == 0)
+					cities[c].alpha = cities[c].alpha - 1;
+				else if (cities[c].alpha == 1)
+					restart = true;
 				_Move(&cities[c], fBackView);
 			}
+
+			if (restart)
+				_Restart(fBackView);
 
 			fBackView->Sync();
 			fBackBitmap->Unlock();
