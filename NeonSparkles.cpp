@@ -56,7 +56,7 @@ NeonSparkles::NeonSparkles(BMessage* archive, image_id id)
 	BScreenSaver(archive, id)
 {
 	fSpots = 22;
-	fParticles = 1000;
+	fParticles = 250;
 	fSpotSize = 5;
 }
 
@@ -316,8 +316,8 @@ void NeonSparkles::Draw(BView* view, int32 frame)
 				float dy = sin(t)*(cities[b].y-cities[a].y)+cities[a].y;
 
 				// noise
-				//dx += random() * 1.5 / RAND_MAX - 1.5;
-				//dy += random() * 1.5 / RAND_MAX - 1.5;
+				dx += random() * 1.5 / RAND_MAX - 1.5;
+				dy += random() * 1.5 / RAND_MAX - 1.5;
 
 				rgb_color c = mix_color(cities[b].myc, cities[a].myc, 128);
 				c.alpha = 16;
