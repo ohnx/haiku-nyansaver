@@ -29,6 +29,7 @@
 #include <stdlib.h>
 
 #include <Alignment.h>
+#include <Bitmap.h>
 #include <CheckBox.h>
 #include <TextView.h>
 #include <LayoutBuilder.h>
@@ -79,14 +80,41 @@ status_t NeonSparkles::StartSaver(BView* view, bool prev)
 	fWidth = (int) rect.Width() + 1;
 	fHeight = (int) rect.Height() + 1;
 
-	view->SetDrawingMode(B_OP_ALPHA);
-	view->SetLineMode(B_ROUND_CAP, B_ROUND_JOIN);
-	view->SetFlags(view->Flags() | B_SUBPIXEL_PRECISE);
+	fBackBitmap = new(std::nothrow) BBitmap(rect, B_RGB32, true);
+	if (fBackBitmap == NULL)
+		return B_ERROR;
 
-	view->SetLowColor(make_color(0, 0, 0, 255));
-	view->SetViewColor(make_color(0, 0, 0, 255));
+	if (fBackBitmap->IsValid()) {
+		fBackView = new(std::nothrow) BView(rect, 0, B_FOLLOW_NONE, B_WILL_DRAW);
+		if (fBackView == NULL) {
+			delete fBackBitmap;
+			fBackBitmap = NULL;
+			return B_ERROR;
+		}
 
-	_Restart(view);
+		fBackBitmap->AddChild(fBackView);
+		memset(fBackBitmap->Bits(), 0, fBackBitmap->BitsLength());
+	} else {
+		delete fBackBitmap;
+		fBackBitmap = NULL;
+		return B_ERROR;
+	}
+
+	fLocker.Lock();
+
+	if (fBackBitmap->Lock()) {
+		fBackView->SetDrawingMode(B_OP_ALPHA);
+		fBackView->SetLineMode(B_ROUND_CAP, B_ROUND_JOIN);
+		fBackView->SetFlags(view->Flags() | B_SUBPIXEL_PRECISE);
+
+		fBackView->SetLowColor(make_color(0, 0, 0, 255));
+		fBackView->SetViewColor(make_color(0, 0, 0, 255));
+		_Restart(fBackView);
+		fBackView->Sync();
+		fBackBitmap->Unlock();
+	}
+
+	fLocker.Unlock();
 
 	return B_OK;
 }
@@ -148,24 +176,28 @@ public:
   float x, y;
   BPoint path[0x201];
   int count = 0;
-  //BPoint old;
   int other;
   float vx, vy;
   rgb_color myc;
-  bool reverse = false;
 
   void Draw(BView* view) {
-  	//rgb_color c = make_color(255, 255, 255, 255);
-  	//if (reverse)
-  	//	c = make_color(0, 0, 0, 255);
   	view->SetDrawingMode(B_OP_OVER);
   	path[count++] = BPoint(x, y);
   	int beginning = max_c(0, count - 32);
-  	view->BeginLineArray(32);
-  	for (int i = beginning; i < count - 1; ++i) {
-  		view->AddLine(path[i], path[i + 1], make_color(255, 255, 255, 255));
-  	}
- 	view->EndLineArray();
+	// colour underneath
+	view->SetPenSize(5.0 / 2.0);
+	view->BeginLineArray(32);
+	for (int i = beginning; i < count - 1; ++i) {
+		view->AddLine(path[i], path[i + 1], myc);
+	}
+	view->EndLineArray();
+	// white on top
+	view->SetPenSize(5.0 / 3.0);
+	view->BeginLineArray(32);
+	for (int i = beginning; i < count - 1; ++i) {
+		view->AddLine(path[i], path[i + 1], make_color(255, 255, 255, 255));
+	}
+	view->EndLineArray();
   }
 };
 
@@ -182,8 +214,21 @@ void NeonSparkles::_Move(City* city, BView* view) {
 	if (random() < RAND_MAX / 100)
 		city->other = random() % fSpots;
 
-    city->x+=city->vx;
-    city->y+=city->vy;
+    city->x+=city->vx / 2;
+    city->y+=city->vy / 2;
+    if (city->x > 0 && city->x < view->Bounds().Width())
+		city->x += city->vx;
+    if (city->y > 0 && city->y < view->Bounds().Height())
+		city->y += city->vy;
+    int delta = fSpotSize * 8;
+    if (city->x < -delta || city->x > view->Bounds().Width() + delta) {
+		city->vx = -city->vx;
+		city->y = random() % (int)view->Bounds().Height();
+    }
+    if (city->y < -delta || city->y > view->Bounds().Height() + delta) {
+		city->vy = -city->vy;
+		city->x = random() % (int)view->Bounds().Width();
+    }
 
     city->Draw(view);
 }
@@ -191,12 +236,8 @@ void NeonSparkles::_Move(City* city, BView* view) {
 
 void NeonSparkles::_Restart(BView* view)
 {
-	view->SetDrawingMode(B_OP_BLEND);
-	view->FillRect(view->Bounds(), B_SOLID_LOW);
-	view->FillRect(view->Bounds(), B_SOLID_LOW);
-
 	float tinc = 2 * M_PI / fSpots;
-	
+
 	float r = random();
 	r /= RAND_MAX;
 	r /= 2; // in range 0.0 - 0.5
@@ -208,9 +249,6 @@ void NeonSparkles::_Restart(BView* view)
 
 	for (int t = 0; t < fSpots; t++)
 	{
-		float r = random();
-		r = r / RAND_MAX;
-			// between 0 and 1
 		cities[t].x = x;
 		cities[t].y = y;
 		cities[t].path[0] = BPoint(x, y);
@@ -218,7 +256,6 @@ void NeonSparkles::_Restart(BView* view)
 		cities[t].vx = (1+random() % 11)*sin(tinc*t);
 		cities[t].vy = (1+random() % 11)*cos(tinc*t);
 		cities[t].myc = somecolor();
-		cities[t].reverse = !cities[t].reverse;
 		do {
 			cities[t].other = random() % fSpots;
 		} while(cities[t].other == t);
@@ -241,71 +278,80 @@ float citydistance(int a, int b) {
 
 void NeonSparkles::Draw(BView* view, int32 frame)
 {
-	if ((frame & 0x1FF) == 0)
-		_Restart(view);
-	//if ((frame & 0x1f) == 0) {
-		view->SetDrawingMode(B_OP_ALPHA);
-		rgb_color c = view->LowColor();
-		view->SetLowColor(make_color(0, 0, 0, 1));
-		view->FillRect(view->Bounds(), B_SOLID_LOW);
-		view->SetLowColor(c);
-	//}
+	fLocker.Lock();
 
-	view->SetDrawingMode(B_OP_BLEND);
-	view->SetPenSize(1.5);
-	view->BeginLineArray(fParticles * 5);
-	for (int n = 0; n < fParticles; n++) 
-	{
-		int a = random() % fSpots; // int rand
-		int b = 0;
-		int tr = 0;
-		do
-		{
-			b = random() % fSpots; // int rand
-			tr ++;
+	if (fBackView) {
+		if (fBackBitmap->Lock()) {
+			if ((frame & 0x1FF) == 0)
+				_Restart(fBackView);
+
+			fBackView->SetDrawingMode(B_OP_ALPHA);
+			rgb_color c = fBackView->LowColor();
+			fBackView->SetLowColor(make_color(0, 0, 0, 1));
+			fBackView->FillRect(view->Bounds(), B_SOLID_LOW);
+			fBackView->SetLowColor(c);
+
+
+			fBackView->SetDrawingMode(B_OP_BLEND);
+			fBackView->SetPenSize(1.5);
+			fBackView->BeginLineArray(fParticles * 5);
+			for (int n = 0; n < fParticles; n++)
+			{
+				int a = random() % fSpots; // int rand
+				int b = 0;
+				int tr = 0;
+				do
+				{
+					b = random() % fSpots; // int rand
+					tr ++;
+				}
+				while (tr < 100 && citydistance(a,b) < (fWidth * fHeight) / (10 * (fWidth + fHeight)));
+
+				if (tr >= 100)
+					continue;
+
+				int r = random();
+				float t = r * M_PI / RAND_MAX; // float rand
+				float dx = sin(t)*(cities[b].x-cities[a].x)+cities[a].x;
+				float dy = sin(t)*(cities[b].y-cities[a].y)+cities[a].y;
+
+				// noise
+				//dx += random() * 1.5 / RAND_MAX - 1.5;
+				//dy += random() * 1.5 / RAND_MAX - 1.5;
+
+				rgb_color c = mix_color(cities[b].myc, cities[a].myc, 128);
+				c.alpha = 16;
+				rgb_color c1 = rgb_color(c);
+				rgb_color c2 = rgb_color(c);
+				c1.alpha = 8;
+				c2.alpha = 4;
+				if (n & 1) {
+					c1 = make_color(0, 0, 0, 255);
+					c2 = make_color(0, 0, 0, 127);
+				}
+
+				fBackView->AddLine(BPoint(dx-2.5, dy-2.5), BPoint(dx, dy), c1);
+				fBackView->AddLine(BPoint(dx+2.5, dy-2.5), BPoint(dx, dy), c2);
+				fBackView->AddLine(BPoint(dx, dy), BPoint(dx, dy), c);
+				fBackView->AddLine(BPoint(dx,dy), BPoint(dx+2.5, dy+2.5), c2);
+				fBackView->AddLine(BPoint(dx,dy), BPoint(dx-2.5, dy+2.5), c1);
+			}
+			fBackView->EndLineArray();
+
+			// move cities
+			fBackView->SetPenSize(fSpotSize / 3);
+			for (int c = 0; c < fSpots; c++) {
+				_Move(&cities[c], fBackView);
+			}
+
+			fBackView->Sync();
+			fBackBitmap->Unlock();
 		}
-		while (tr < 100 && citydistance(a,b) < (fWidth * fHeight) / (10 * (fWidth + fHeight)));
-
-		if (tr >= 100)
-			continue;
-
-		int r = random();
-		float t = r * M_PI / RAND_MAX; // float rand
-		float dx = sin(t)*(cities[b].x-cities[a].x)+cities[a].x;
-		float dy = sin(t)*(cities[b].y-cities[a].y)+cities[a].y;
-
-			// noise
-			//dx += random() * 1.5 / RAND_MAX - 1.5;
-			//dy += random() * 1.5 / RAND_MAX - 1.5;
-
-		rgb_color c = mix_color(cities[b].myc, cities[a].myc, 128);
-		c.alpha = 16;
-		rgb_color c1 = rgb_color(c);
-		rgb_color c2 = rgb_color(c);
-		c1.alpha = 8;
-		c2.alpha = 4;
-		if (n & 1) {
-			c1 = make_color(0, 0, 0, 255);
-			c2 = make_color(0, 0, 0, 127);
-		}
-		view->AddLine(BPoint(dx-2.5, dy-2.5), BPoint(dx, dy), c1);
-		view->AddLine(BPoint(dx+2.5, dy-2.5), BPoint(dx, dy), c2);
-		view->AddLine(BPoint(dx, dy), BPoint(dx, dy), c);
-		view->AddLine(BPoint(dx,dy), BPoint(dx+2.5, dy+2.5), c2);
-		view->AddLine(BPoint(dx,dy), BPoint(dx-2.5, dy+2.5), c1);
-	}
-	view->EndLineArray();
-
-	view->SetPenSize(fSpotSize);
-	//view->BeginLineArray(fSpots * 0x200);
-	// move cities
-	for (int c = 0; c < fSpots; c++) {
-		//view->BeginLineArray(36);
-		_Move(&cities[c], view);
-		//view->EndLineArray();
 		
+		view->DrawBitmap(fBackBitmap, BPoint(0, 0));
 	}
-	//view->EndLineArray();
+
+	fLocker.Unlock();
 }
 
 
@@ -322,4 +368,3 @@ status_t NeonSparkles::SaveState(BMessage* into) const
 {
 	return B_OK;
 }
-

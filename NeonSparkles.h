@@ -25,7 +25,7 @@
 
 #include <Handler.h>
 #include <ScreenSaver.h>
-#include <ObjectList.h>
+#include <Locker.h>
 
 class City;
 
@@ -52,5 +52,9 @@ private:
 	int							fSpots;
 	int							fParticles;
 	float						fSpotSize;
+
+	BBitmap*					fBackBitmap;
+	BView*						fBackView;
+	BLocker						fLocker;
 };
 
