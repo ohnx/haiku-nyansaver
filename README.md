@@ -1,7 +1,7 @@
 Neon Sparkles
 ===========
 
-Screensaver for Haiku, based on [PulkoMandy's Neon Lines](https://github.com/pulkomandy/neonlights), which in turn is loosely based on [Jared Tarbell's work](http://www.complexification.net/gallery/machines/citytraveller/).
+Screensaver for Haiku, based on [PulkoMandy's Neon Lines](https://github.com/pulkomandy/neonlights), which in turn is loosely based on [Jared Tarbell's work](http://www.complexification.net/gallery/machines/citytraveler/).
 
 Why?
 ----
