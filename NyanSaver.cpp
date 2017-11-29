@@ -3,6 +3,7 @@
  * 
  * Copyright 2016, Adrien Destugues
  * Copyright 2017, Jessica Hamilton
+ * Copyright 2017, Mason
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,38 +24,59 @@
  * SOFTWARE.
  */
 
-#include <Handler.h>
-#include <ScreenSaver.h>
-#include <Locker.h>
+#include "NyanSaver.h"
 
-class City;
+static const BString kName = "NyanSaver";
+static const BString kAuthor = "Adrien Destugues, Jessica Hamilton, Mason X";
 
-class NeonSparkles : public BScreenSaver, public BHandler {
-public:
-						NeonSparkles(BMessage* archive, image_id id);
-						~NeonSparkles();
+extern "C" BScreenSaver*
+instantiate_screen_saver(BMessage* msg, image_id id)
+{
+	return new NyanSaver(msg, id);
+}
 
-	virtual void		StartConfig(BView* view);
 
-	virtual status_t	StartSaver(BView* view, bool preview);
-	virtual void		Draw(BView* view, int32 frame);
+NyanSaver::NyanSaver(BMessage* archive, image_id id)
+	:
+	BScreenSaver(archive, id)
+{
+}
 
-	virtual void		MessageReceived(BMessage* msg);
-	virtual status_t	SaveState(BMessage* into) const;
 
-private:
-	void						_Restart(BView* view);
-	void						_Move(City* city, BView* view);
+NyanSaver::~NyanSaver()
+{
+}
 
-	int							fWidth;
-	int							fHeight;
 
-	int							fSpots;
-	int							fParticles;
-	float						fSpotSize;
+void NyanSaver::StartConfig(BView* view)
+{
+}
 
-	BBitmap*					fBackBitmap;
-	BView*						fBackView;
-	BLocker						fLocker;
-};
 
+status_t NyanSaver::StartSaver(BView* view, bool prev)
+{
+	return B_OK;
+}
+
+void NyanSaver::Draw(BView* view, int32 frame)
+{
+	if (frame == 0) { 
+		view->SetLowColor(0, 0, 0); 
+		view->FillRect(view->Bounds(), B_SOLID_LOW); 
+	}
+}
+
+
+void NyanSaver::MessageReceived(BMessage* msg)
+{
+	switch (msg->what) {
+	default:
+		BHandler::MessageReceived(msg);
+	}
+}
+
+
+status_t NyanSaver::SaveState(BMessage* into) const
+{
+	return B_OK;
+}
