@@ -27,11 +27,15 @@
 #include <stdlib.h>
 
 #include <Catalog.h>
-#include <DefaultSettingsView.h>
 #include <Font.h>
 #include <ScreenSaver.h>
 #include <StringView.h>
 #include <View.h>
+
+extern "C" {
+#include "nyan.h"
+#include "nyanbutt1.h"
+}
 
 class NyanSaver : public BScreenSaver, public BHandler {
 public:
